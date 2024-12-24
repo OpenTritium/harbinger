@@ -1,0 +1,11 @@
+[package]
+name = "harbinger"
+version = "0.1.0"
+edition = "2024"
+
+
+[dependencies]
+nanoid = "0.4.0"
+rustc-hash = "2.1.0"
+tokio = { version = "1.42.0", features = ["full"] }
+ipconfig = "0.3.2"
