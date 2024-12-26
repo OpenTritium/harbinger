@@ -23,7 +23,7 @@ impl Env {
 
 static ENV: OnceLock<Env> = OnceLock::new();
 
-pub(crate) fn get_env() -> &'static Env {
+pub fn get_env() -> &'static Env {
     ENV.get_or_init(|| Env {
         host_id: nanoid!().into(),
         nics: ipconfig::get_adapters()

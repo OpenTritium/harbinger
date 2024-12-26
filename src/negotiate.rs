@@ -1,11 +1,10 @@
-use std::mem::transmute;
 use super::env::{get_env, Env};
 use crate::msg::hello::HelloMsg;
 use crate::msg::msg::Message;
 use crate::msg::opt::{OptCode, OptMsg};
 use crate::peer::PeerFutureState;
-use dashmap::{DashMap, DashSet};
-use std::net::{Ipv6Addr, SocketAddr, SocketAddrV6};
+use dashmap::DashMap;
+use std::net::{SocketAddr, SocketAddrV6};
 use std::str::FromStr;
 use thiserror::Error;
 use tokio::net::UdpSocket;

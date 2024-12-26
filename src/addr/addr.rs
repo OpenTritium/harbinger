@@ -5,7 +5,7 @@ use Ipv6Scope::{Global, LinkLocal};
 use Ipv6ScopeError::{MissingScope, RedundantScope, UnknownAddress};
 
 #[derive(Debug, Eq, PartialEq, Hash, Serialize, Deserialize, Clone)]
-pub(crate) struct ScopeId(u32);
+pub struct ScopeId(u32);
 
 impl From<u32> for ScopeId {
     fn from(v: u32) -> Self {
@@ -19,13 +19,13 @@ impl From<ScopeId> for u32 {
     }
 }
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, Hash, PartialEq)]
-pub(crate) enum Ipv6Scope {
+pub enum Ipv6Scope {
     LinkLocal(Ipv6Addr, ScopeId),
     Global(Ipv6Addr),
 }
 
 #[derive(Error, Debug)]
-pub(crate) enum Ipv6ScopeError {
+pub enum Ipv6ScopeError {
     #[error("Link-local address {0} is missing a matching scope_id")]
     MissingScope(Ipv6Addr),
     #[error("Redundant scope_id: {0:?}")]
