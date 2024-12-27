@@ -142,7 +142,7 @@ impl Discovery {
                     self.socket
                         .send_to(
                             connect_msg.as_bytes(),
-                            addr.clone().into_sockaddr_v6(get_env().port),
+                            SocketAddrV6::new(addr.clone().into(), 0, 0, self.link_local_sockaddr.scope_id()),
                         )
                         .await
                         .unwrap();

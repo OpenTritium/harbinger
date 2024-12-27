@@ -24,6 +24,15 @@ pub enum Ipv6Scope {
     Global(Ipv6Addr),
 }
 
+impl From<Ipv6Scope> for Ipv6Addr {
+    fn from(val: Ipv6Scope) -> Self {
+        match val { 
+            LinkLocal(addr, _) => addr,
+            Global(addr) => addr,
+        }
+    }
+}
+
 #[derive(Error, Debug)]
 pub enum Ipv6ScopeError {
     #[error("Link-local address {0} is missing a matching scope_id")]
