@@ -8,7 +8,6 @@ use crate::peer::future_state::PeerFutureState;
 use crate::uid::Uid;
 use dashmap::DashMap;
 use dashmap::mapref::one::RefMut;
-use tokio::time::interval;
 use std::net::{SocketAddr, SocketAddrV6};
 use std::str::FromStr;
 use std::sync::Arc;
@@ -16,6 +15,7 @@ use std::thread::sleep;
 use std::time::Duration;
 use thiserror::Error;
 use tokio::net::UdpSocket;
+use tokio::time::interval;
 
 pub struct Discovery {
     link_local_sockaddr: SocketAddrV6,
@@ -79,10 +79,19 @@ impl Discovery {
         } = get_env();
         if let Ok(bytes_sent) = self
             .socket
-            .send_to(h.as_bytes(), SocketAddrV6::new(*multicast_local, *port, 0,self.link_local_sockaddr.scope_id()))
+            .send_to(
+                h.as_bytes(),
+                SocketAddrV6::new(
+                    *multicast_local,
+                    *port,
+                    0,
+                    self.link_local_sockaddr.scope_id(),
+                ),
+            )
             .await
         {
-            interval(Duration::from_secs(3)).tick().await;
+            let mut it = interval(Duration::from_secs(30));
+            it.tick().await;
             //dbg!(bytes_sent);
         }
     }
@@ -94,8 +103,9 @@ impl Discovery {
         let mut buffer = [0u8; 1024];
         let (len, src) = self.socket.recv_from(&mut buffer).await.unwrap();
         let msg = String::from_utf8_lossy(&buffer[..len]);
-        //dbg!(&msg);
+        dbg!(&msg);
         let m = Message::from_str(&msg).unwrap();
+        dbg!(&m);
         if let SocketAddr::V6(a) = src {
             //dbg!(&m);
             // peek 再拿
@@ -109,7 +119,6 @@ impl Discovery {
                     if uid != get_env().host_id {
                         peers.insert(uid, pfs);
                     }
-                    
                     //dbg!(peers);
                 }
                 // established 后不要轻举妄动
@@ -134,7 +143,10 @@ impl Discovery {
                 let connect_msg = OptMsg::gen_msg_by_state(&state).to_string();
                 // todo 处理错误
                 self.socket
-                    .send_to(connect_msg.as_bytes(), addr.clone().into_sockaddr_v6(get_env().port))
+                    .send_to(
+                        connect_msg.as_bytes(),
+                        addr.clone().into_sockaddr_v6(get_env().port),
+                    )
                     .await
                     .unwrap();
                 *record.value_mut() = PeerFutureState::Establish(addr.clone());
