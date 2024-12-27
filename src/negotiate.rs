@@ -1,4 +1,4 @@
-use super::env::{Env, get_env};
+use super::env::{get_env, Env};
 use crate::addr::addr::Ipv6Scope;
 use crate::addr::addr::Ipv6Scope::LinkLocal;
 use crate::msg::hello::HelloMsg;
@@ -6,12 +6,11 @@ use crate::msg::msg::Message;
 use crate::msg::opt::{OptCode, OptMsg};
 use crate::peer::future_state::PeerFutureState;
 use crate::uid::Uid;
-use dashmap::DashMap;
 use dashmap::mapref::one::RefMut;
+use dashmap::DashMap;
 use std::net::{SocketAddr, SocketAddrV6};
 use std::str::FromStr;
 use std::sync::Arc;
-use std::thread::sleep;
 use std::time::Duration;
 use thiserror::Error;
 use tokio::net::UdpSocket;
@@ -102,14 +101,11 @@ impl Discovery {
     pub async fn listen(&self, peers: Arc<DashMap<Uid, PeerFutureState>>) {
         let mut buffer = [0u8; 1024];
         let (len, src) = self.socket.recv_from(&mut buffer).await.unwrap();
-        let msg = String::from_utf8_lossy(&buffer[..len]);
-        dbg!(&msg);
-        let m = Message::from_str(&msg).unwrap();
-        dbg!(&m);
+        let msg = Message::from_str(&String::from_utf8_lossy(&buffer[..len])).unwrap();
         if let SocketAddr::V6(a) = src {
             //dbg!(&m);
             // peek 再拿
-            match m {
+            match msg {
                 // 收到hello后将要connect
                 Message::Hello(hello) => {
                     //todo filter 本机
@@ -136,26 +132,28 @@ impl Discovery {
         }
     }
     // 无状态发送
-    pub async fn select(&self, mut record: RefMut<'_, Uid, PeerFutureState>) {
-        let state = record.value();
-        match state {
-            PeerFutureState::Connect(addr) => {
-                let connect_msg = OptMsg::gen_msg_by_state(&state).to_string();
-                // todo 处理错误
-                self.socket
-                    .send_to(
-                        connect_msg.as_bytes(),
-                        addr.clone().into_sockaddr_v6(get_env().port),
-                    )
-                    .await
-                    .unwrap();
-                *record.value_mut() = PeerFutureState::Establish(addr.clone());
+    pub async fn select(&self, record: Option<RefMut<'_, Uid, PeerFutureState>>) {
+        if let Some(mut record) = record {
+            let state = record.value();
+            match state {
+                PeerFutureState::Connect(addr) => {
+                    let connect_msg = OptMsg::gen_msg_by_state(&state).to_string();
+                    // todo 处理错误
+                    self.socket
+                        .send_to(
+                            connect_msg.as_bytes(),
+                            addr.clone().into_sockaddr_v6(get_env().port),
+                        )
+                        .await
+                        .unwrap();
+                    *record.value_mut() = PeerFutureState::Establish(addr.clone());
+                }
+                PeerFutureState::Establish(_) => {
+                    // 发出或收到 connect 消息后保持此状态
+                }
+                PeerFutureState::Dispose(_) => todo!(),
+                PeerFutureState::Disconnect(_) => todo!(),
             }
-            PeerFutureState::Establish(_) => {
-                // 发出或收到 connect 消息后保持此状态
-            }
-            PeerFutureState::Dispose(_) => todo!(),
-            PeerFutureState::Disconnect(_) => todo!(),
         }
     }
 }

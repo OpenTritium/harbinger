@@ -23,11 +23,16 @@ impl Cursor {
             peers,
         }
     }
-    pub fn get_next_record(&mut self) -> RefMut<'_, Uid, PeerFutureState> {
+    // 无数据时会一直递归
+    pub fn get_next_record(&mut self) -> Option<RefMut<'_, Uid, PeerFutureState>> {
+        if self.peers.is_empty() {
+            return None;
+        }
         // 索引超出就重新生成索引
         if let Some(uid) = self.keys.get(self.current_index) {
+            self.current_index += 1;
             // 记得处理索引与表数据不同步导致的无法查找错误
-            self.peers.get_mut(uid).unwrap()
+            Some(self.peers.get_mut(uid).unwrap())
         } else {
             self.keys = self
                 .peers
