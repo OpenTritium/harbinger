@@ -2,8 +2,7 @@ use crate::addr::addr::Ipv6Scope;
 use crate::env::get_env;
 use crate::uid::Uid;
 use serde::{Deserialize, Serialize};
-use std::fmt;
-use std::fmt::Display;
+use std::fmt::{self, Display, Formatter};
 use std::str::FromStr;
 
 // todo! 协议版本控制
@@ -35,7 +34,7 @@ impl FromStr for HelloMsg {
 }
 
 impl Display for HelloMsg {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         let ser = ron::to_string(self).map_err(|_| fmt::Error)?;
         write!(f, "{}", ser)
     }

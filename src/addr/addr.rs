@@ -1,21 +1,21 @@
+use Ipv6Scope::{Global, LinkLocal};
+use Ipv6ScopeError::{MissingScope, RedundantScope, UnknownAddress};
 use serde::{Deserialize, Serialize};
 use std::net::{Ipv6Addr, SocketAddrV6};
 use thiserror::Error;
-use Ipv6Scope::{Global, LinkLocal};
-use Ipv6ScopeError::{MissingScope, RedundantScope, UnknownAddress};
 
 #[derive(Debug, Eq, PartialEq, Hash, Serialize, Deserialize, Clone)]
 pub struct ScopeId(u32);
 
 impl From<u32> for ScopeId {
-    fn from(v: u32) -> Self {
-        Self(v)
+    fn from(val: u32) -> Self {
+        Self(val)
     }
 }
 
 impl From<ScopeId> for u32 {
-    fn from(value: ScopeId) -> Self {
-        value.0
+    fn from(val: ScopeId) -> Self {
+        val.0
     }
 }
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, Hash, PartialEq)]
@@ -35,27 +35,24 @@ pub enum Ipv6ScopeError {
 }
 impl Ipv6Scope {
     pub fn try_from_ipv6addr(
-        addr: &Ipv6Addr,
+        addr: Ipv6Addr,
         scope_id: Option<ScopeId>,
     ) -> Result<Ipv6Scope, Ipv6ScopeError> {
         match (addr, scope_id) {
-            (addr, None) if addr.is_global() => Ok(Global(*addr)),
+            (addr, None) if addr.is_global() => Ok(Global(addr)),
             (addr, Some(s)) if addr.is_global() => Err(RedundantScope(s)),
-            (addr, Some(scope_id)) if addr.is_unicast_link_local() => {
-                Ok(LinkLocal(*addr, scope_id))
-            }
-            (addr, None) if addr.is_unicast_link_local() => Err(MissingScope(*addr)),
-            (addr, _) => Err(UnknownAddress(*addr)),
+            (addr, Some(scope_id)) if addr.is_unicast_link_local() => Ok(LinkLocal(addr, scope_id)),
+            (addr, None) if addr.is_unicast_link_local() => Err(MissingScope(addr)),
+            (addr, _) => Err(UnknownAddress(addr)),
         }
     }
     pub fn try_from_sockaddr_v6(sockaddr: SocketAddrV6) -> Result<Ipv6Scope, Ipv6ScopeError> {
-        Self::try_from_ipv6addr(sockaddr.ip(), Some(sockaddr.scope_id().into()))
+        Self::try_from_ipv6addr(*sockaddr.ip(), Some(sockaddr.scope_id().into()))
     }
-    pub fn into_sockaddr_v6(self,p:u16) -> SocketAddrV6 {
+    pub fn into_sockaddr_v6(self, p: u16) -> SocketAddrV6 {
         match self {
-            LinkLocal(addr, sid) => {SocketAddrV6::new(addr, p, 0,sid.into() )}
-            Global(addr) => {SocketAddrV6::new(addr, p, 0,0)}
+            LinkLocal(addr, sid) => SocketAddrV6::new(addr, p, 0, sid.into()),
+            Global(addr) => SocketAddrV6::new(addr, p, 0, 0),
         }
-        
     }
 }

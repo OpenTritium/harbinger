@@ -40,7 +40,7 @@ pub fn get_env() -> &'static Env {
                             if let IpAddr::V6(a) = ip {
                                 Some(
                                     Ipv6Scope::try_from_ipv6addr(
-                                        &a,
+                                        a.clone(),
                                         Some(adapter.ipv6_if_index().into()),
                                     )
                                     .ok()?,
