@@ -12,9 +12,11 @@ use std::net::{SocketAddr, SocketAddrV6};
 use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
+use socket2::{Domain, Protocol, Socket, Type};
 use thiserror::Error;
 use tokio::net::UdpSocket;
 use tokio::time::interval;
+
 
 pub struct Discovery {
     link_local_sockaddr: SocketAddrV6,
@@ -57,13 +59,16 @@ impl Discovery {
                 _ => None,
             })
             .ok_or(DiscoveryError::BestMetricNicNotFound)?;
-        let sockaddr_local_link = host.clone().into_sockaddr_v6(*port);
-        let s = UdpSocket::bind(&sockaddr_local_link).await.unwrap();
+        let sockaddr_local_link = host.clone().into_sockaddr_v6();
+
+        let s = Socket::new(Domain::IPV6, Type::DGRAM, Some(Protocol::UDP)).unwrap();
+        s.set_reuse_address(true).unwrap();
+        s.bind(&sockaddr_local_link.clone().into()).unwrap();
         s.join_multicast_v6(multicast_local, scope_id).unwrap();
         // todo 处理全球
         Ok(Discovery {
             link_local_sockaddr: sockaddr_local_link,
-            socket: s,
+            socket: UdpSocket::from_std(s.into()).unwrap(),
         })
     }
     // todo id冲突解决
@@ -142,7 +147,7 @@ impl Discovery {
                     self.socket
                         .send_to(
                             connect_msg.as_bytes(),
-                            addr.clone().into_sockaddr_v6(get_env().port),
+                            SocketAddrV6::new(addr.clone().into(), 0, 0, self.link_local_sockaddr.scope_id()),
                         )
                         .await
                         .unwrap();

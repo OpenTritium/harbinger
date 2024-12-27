@@ -3,6 +3,7 @@ use Ipv6ScopeError::{MissingScope, RedundantScope, UnknownAddress};
 use serde::{Deserialize, Serialize};
 use std::net::{Ipv6Addr, SocketAddrV6};
 use thiserror::Error;
+use crate::env::get_env;
 
 #[derive(Debug, Eq, PartialEq, Hash, Serialize, Deserialize, Clone)]
 pub struct ScopeId(u32);
@@ -22,6 +23,15 @@ impl From<ScopeId> for u32 {
 pub enum Ipv6Scope {
     LinkLocal(Ipv6Addr, ScopeId),
     Global(Ipv6Addr),
+}
+
+impl From<Ipv6Scope> for Ipv6Addr {
+    fn from(val: Ipv6Scope) -> Self {
+        match val { 
+            LinkLocal(addr, _) => addr,
+            Global(addr) => addr,
+        }
+    }
 }
 
 #[derive(Error, Debug)]
@@ -49,10 +59,10 @@ impl Ipv6Scope {
     pub fn try_from_sockaddr_v6(sockaddr: SocketAddrV6) -> Result<Ipv6Scope, Ipv6ScopeError> {
         Self::try_from_ipv6addr(*sockaddr.ip(), Some(sockaddr.scope_id().into()))
     }
-    pub fn into_sockaddr_v6(self, p: u16) -> SocketAddrV6 {
+    pub fn into_sockaddr_v6(self) -> SocketAddrV6 {
         match self {
-            LinkLocal(addr, sid) => SocketAddrV6::new(addr, p, 0, sid.into()),
-            Global(addr) => SocketAddrV6::new(addr, p, 0, 0),
+            LinkLocal(addr, sid) => SocketAddrV6::new(addr, get_env().port, 0, sid.into()),
+            Global(addr) => SocketAddrV6::new(addr, get_env().port, 0, 0),
         }
     }
 }
