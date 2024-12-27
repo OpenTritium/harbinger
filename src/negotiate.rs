@@ -8,9 +8,12 @@ use crate::peer::future_state::PeerFutureState;
 use crate::uid::Uid;
 use dashmap::DashMap;
 use dashmap::mapref::one::RefMut;
+use tokio::time::interval;
 use std::net::{SocketAddr, SocketAddrV6};
 use std::str::FromStr;
 use std::sync::Arc;
+use std::thread::sleep;
+use std::time::Duration;
 use thiserror::Error;
 use tokio::net::UdpSocket;
 
@@ -39,14 +42,14 @@ impl Discovery {
             return Err(DiscoveryError::RouteUnavailable);
         }
         let Env {
-            multicast_global: mga,
-            multicast_local: mla,
-            port: p,
-            nics: ns,
+            multicast_global,
+            multicast_local,
+            port,
+            nics,
             ..
         } = get_env();
         // select the best nic
-        let (&scope_id, (_, addrs)) = ns.iter().min_by_key(|r| r.0).unwrap();
+        let (&scope_id, (_, addrs)) = nics.iter().min_by_key(|r| r.0).unwrap();
         let host = addrs
             .iter()
             .rev()
@@ -55,9 +58,9 @@ impl Discovery {
                 _ => None,
             })
             .ok_or(DiscoveryError::BestMetricNicNotFound)?;
-        let sockaddr_local_link = host.clone().into_sockaddr_v6(*p);
+        let sockaddr_local_link = host.clone().into_sockaddr_v6(*port);
         let s = UdpSocket::bind(&sockaddr_local_link).await.unwrap();
-        s.join_multicast_v6(mla, scope_id).unwrap();
+        s.join_multicast_v6(multicast_local, scope_id).unwrap();
         // todo 处理全球
         Ok(Discovery {
             link_local_sockaddr: sockaddr_local_link,
@@ -68,18 +71,19 @@ impl Discovery {
     pub async fn hello(&self) {
         let h = HelloMsg::new(&Ipv6Scope::try_from_sockaddr_v6(self.link_local_sockaddr).unwrap())
             .to_string();
-        dbg!(&h);
+        //dbg!(&h);
         let Env {
-            multicast_local: mla,
-            port: p,
+            multicast_local,
+            port,
             ..
         } = get_env();
         if let Ok(bytes_sent) = self
             .socket
-            .send_to(h.as_bytes(), self.link_local_sockaddr)
+            .send_to(h.as_bytes(), SocketAddrV6::new(*multicast_local, *port, 0,self.link_local_sockaddr.scope_id()))
             .await
         {
-            dbg!(bytes_sent);
+            interval(Duration::from_secs(3)).tick().await;
+            //dbg!(bytes_sent);
         }
     }
     //我提出 greet,unicast
@@ -90,10 +94,10 @@ impl Discovery {
         let mut buffer = [0u8; 1024];
         let (len, src) = self.socket.recv_from(&mut buffer).await.unwrap();
         let msg = String::from_utf8_lossy(&buffer[..len]);
-        dbg!(&msg);
+        //dbg!(&msg);
         let m = Message::from_str(&msg).unwrap();
         if let SocketAddr::V6(a) = src {
-            dbg!(&m);
+            //dbg!(&m);
             // peek 再拿
             match m {
                 // 收到hello后将要connect
@@ -102,8 +106,11 @@ impl Discovery {
                     // 收到 问候后 greet
                     // 然后生成对应状态的peer
                     let (uid, pfs) = hello.into();
-                    peers.insert(uid, pfs);
-                    dbg!(peers);
+                    if uid != get_env().host_id {
+                        peers.insert(uid, pfs);
+                    }
+                    
+                    //dbg!(peers);
                 }
                 // established 后不要轻举妄动
                 Message::Opt(o) => match OptCode::from_bits(o.opt_code).unwrap().bits() {
@@ -121,14 +128,13 @@ impl Discovery {
     }
     // 无状态发送
     pub async fn select(&self, mut record: RefMut<'_, Uid, PeerFutureState>) {
-        let port = get_env().port;
         let state = record.value();
         match state {
             PeerFutureState::Connect(addr) => {
                 let connect_msg = OptMsg::gen_msg_by_state(&state).to_string();
                 // todo 处理错误
                 self.socket
-                    .send_to(connect_msg.as_bytes(), addr.clone().into_sockaddr_v6(port))
+                    .send_to(connect_msg.as_bytes(), addr.clone().into_sockaddr_v6(get_env().port))
                     .await
                     .unwrap();
                 *record.value_mut() = PeerFutureState::Establish(addr.clone());

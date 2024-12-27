@@ -18,7 +18,6 @@ mod uid;
 #[tokio::main]
 async fn main() {
     let x = Discovery::new().await.unwrap();
-    x.hello().await;
 
     let peers: DashMap<Uid, PeerFutureState> = DashMap::new();
 
@@ -26,8 +25,9 @@ async fn main() {
     let mut cursor = Cursor::new(peers.clone());
 
     loop {
+        x.hello().await;
         x.listen(peers.clone()).await;
-        x.select(cursor.get_next_record()).await;
-        dbg!(&peers);
+       x.select(cursor.get_next_record()).await;
+        println!("{:?}",peers);
     }
 }

@@ -59,7 +59,7 @@ pub fn get_env() -> &'static Env {
             })
             .collect::<FxHashMap<_, _>>(),
         multicast_local: Ipv6Addr::new(0b1111111100010010, 0, 0, 0, 0, 0, 0, 1),
-        multicast_global: Ipv6Addr::new(0b1111111100011110, 0, 0, 0, 0, 0, 0, 1),
+        multicast_global: Ipv6Addr::new(0b1111111100011110, 0, 0, 0, 0, 0, 0, 1).into(),
         port: 5555,
     })
 }
