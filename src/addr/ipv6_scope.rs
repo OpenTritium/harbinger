@@ -1,24 +1,11 @@
-use Ipv6Scope::{Global, LinkLocal};
-use Ipv6ScopeError::{MissingScope, RedundantScope, UnknownAddress};
+use crate::addr::scope_id::ScopeId;
+use crate::env::env::get_env;
 use serde::{Deserialize, Serialize};
 use std::net::{Ipv6Addr, SocketAddrV6};
 use thiserror::Error;
-use crate::env::get_env;
+use Ipv6Scope::{Global, LinkLocal};
+use Ipv6ScopeError::{MissingScope, RedundantScope, UnknownAddress};
 
-#[derive(Debug, Eq, PartialEq, Hash, Serialize, Deserialize, Clone)]
-pub struct ScopeId(u32);
-
-impl From<u32> for ScopeId {
-    fn from(val: u32) -> Self {
-        Self(val)
-    }
-}
-
-impl From<ScopeId> for u32 {
-    fn from(val: ScopeId) -> Self {
-        val.0
-    }
-}
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, Hash, PartialEq)]
 pub enum Ipv6Scope {
     LinkLocal(Ipv6Addr, ScopeId),
@@ -27,7 +14,7 @@ pub enum Ipv6Scope {
 
 impl From<Ipv6Scope> for Ipv6Addr {
     fn from(val: Ipv6Scope) -> Self {
-        match val { 
+        match val {
             LinkLocal(addr, _) => addr,
             Global(addr) => addr,
         }

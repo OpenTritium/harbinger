@@ -1,9 +1,9 @@
+use crate::addr::ipv6_scope::Ipv6Scope;
+use crate::env::uid::Uid;
 use nanoid::nanoid;
 use rustc_hash::FxHashMap;
-use std::sync::OnceLock;
-use crate::addr::addr::Ipv6Scope;
-use crate::uid::Uid;
 use std::net::{IpAddr, Ipv6Addr};
+use std::sync::OnceLock;
 
 #[derive(Debug)]
 pub struct Env {
@@ -43,7 +43,7 @@ pub fn get_env() -> &'static Env {
                                         a.clone(),
                                         Some(adapter.ipv6_if_index().into()),
                                     )
-                                    .ok()?,
+                                        .ok()?,
                                 )
                             } else {
                                 None

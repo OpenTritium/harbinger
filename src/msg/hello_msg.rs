@@ -1,6 +1,8 @@
-use crate::addr::addr::Ipv6Scope;
-use crate::env::get_env;
-use crate::uid::Uid;
+use crate::addr::ipv6_scope::Ipv6Scope;
+use crate::env::env::get_env;
+use crate::env::uid::Uid;
+use crate::peer::peer_state::PeerState;
+use crate::peer::peer_state::PeerState::Connect;
 use serde::{Deserialize, Serialize};
 use std::fmt::{self, Display, Formatter};
 use std::str::FromStr;
@@ -37,5 +39,11 @@ impl Display for HelloMsg {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         let ser = ron::to_string(self).map_err(|_| fmt::Error)?;
         write!(f, "{}", ser)
+    }
+}
+
+impl From<HelloMsg> for (Uid, PeerState) {
+    fn from(msg: HelloMsg) -> Self {
+        (msg.host_id, Connect(msg.addr))
     }
 }

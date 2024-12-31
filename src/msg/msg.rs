@@ -1,5 +1,5 @@
-use super::opt::OptMsg;
-use crate::msg::hello::HelloMsg;
+use super::opt_msg::OptMsg;
+use crate::msg::hello_msg::HelloMsg;
 use std::str::FromStr;
 
 #[derive(Debug)]

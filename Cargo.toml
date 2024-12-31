@@ -14,5 +14,7 @@ serde = { version = "1.0.216", features = ["derive"] }
 dashmap = "6.1.0"
 bitflags = "2.6.0"
 thiserror = "2.0.7"
-socket2 = { version = "0.5.8",features = ["all"] }
+socket2 = { version = "0.5.8", features = ["all"] }
 rand = "0.8.5"
+tokio-stream = "0.1.17"
+futures = "0.3.31"
