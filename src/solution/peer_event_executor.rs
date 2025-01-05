@@ -68,6 +68,14 @@ impl PeerEventExecutor {
                 // 如果表中有此用户，不插入，如果没有就插入
                 PeerEvent::CONNECTED(uid, addr) => {
                     info!("触发连接");
+                    loopback
+                        .send(PeerEvent::ESTABLISHED(uid.clone(), addr.clone()))
+                        .await
+                        .unwrap();
+                    peers
+                        .entry(uid)
+                        .and_modify(|v| *v = addr.clone())
+                        .or_insert(addr);
                 }
                 PeerEvent::ESTABLISHED(uid, ..) => {
                 
