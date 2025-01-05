@@ -1,2 +1,2 @@
 pub mod ipv6_scope;
-mod scope_id;
+pub mod scope_id;

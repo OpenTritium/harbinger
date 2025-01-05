@@ -1,13 +1,26 @@
 use crate::addr::ipv6_scope::Ipv6Scope;
+use crate::addr::ipv6_scope::Ipv6Scope::LinkLocal;
 use crate::env::uid::Uid;
 use nanoid::nanoid;
 use rustc_hash::FxHashMap;
 use std::net::{IpAddr, Ipv6Addr};
 use std::sync::OnceLock;
+use thiserror::Error;
+
+#[derive(Debug, Error)]
+pub enum EnvError {
+    #[error("")]
+    BestMetricNicNotFound,
+    #[error("")]
+    LocalLinkNotFound,
+    #[error("")]
+    RouteUnavailable,
+}
 
 #[derive(Debug)]
 pub struct Env {
     pub host_id: Uid,
+    // scope_id,metric,addr
     pub nics: FxHashMap<u32, (u32, Vec<Ipv6Scope>)>,
     // todo! 从配置读取
     pub multicast_local: Ipv6Addr,
@@ -16,8 +29,19 @@ pub struct Env {
 }
 
 impl Env {
-    pub fn is_ipv6_route_available(&self) -> bool {
-        !self.nics.is_empty()
+    pub fn best_local_link(&self) -> Result<Ipv6Scope, EnvError> {
+        if self.nics.is_empty() {
+            return Err(EnvError::RouteUnavailable);
+        }
+        // pick the best nic by metric
+        let (&scope_id, (_, addrs)) = self.nics.iter().min_by_key(|r| r.0).unwrap();
+        addrs
+            .iter()
+            .rev()
+            .find_map(|addr| match addr {
+                a @ LinkLocal(..) => Some(a.clone()),
+                _ => None,
+            }).ok_or(EnvError::BestMetricNicNotFound)
     }
 }
 

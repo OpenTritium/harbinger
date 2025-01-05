@@ -18,3 +18,4 @@ socket2 = { version = "0.5.8", features = ["all"] }
 rand = "0.8.5"
 tokio-stream = "0.1.17"
 futures = "0.3.31"
+bytes = "1.9.0"
