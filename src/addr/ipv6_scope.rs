@@ -52,4 +52,14 @@ impl Ipv6Scope {
             Global(addr) => SocketAddrV6::new(addr, get_env().port, 0, 0),
         }
     }
+    pub fn replace_scope_id(self) -> Option<Ipv6Scope> {
+        if let LinkLocal(_, local_sid) = get_env().best_local_link().unwrap() {
+            match self {
+                LinkLocal(addr, _) => Some(LinkLocal(addr, local_sid)),
+                Global(_) => None,
+            }
+        } else {
+            None
+        }
+    }
 }
