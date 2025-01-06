@@ -29,12 +29,13 @@ async fn main() {
 
     repeating_hello();
     peer_event_executor().registry(hello_reply());
-    peer_event_executor().listening();
+    peer_event_executor().listening().await;
     tokio::spawn(async move {
         let mut interval = tokio::time::interval(std::time::Duration::from_secs(3));
         loop {
             interval.tick().await;
             info!("已发现的用户：{:?}",peer_event_executor().peers);
+            //tokio::task::yield_now().await;
         }
     });
     loop {

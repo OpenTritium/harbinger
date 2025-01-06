@@ -44,8 +44,8 @@ impl PeerEventExecutor {
     // 多播只会收到hello
     //单播收到opt
 
-    pub fn listening(&self) {
-        let (loopback, mut listener) = msg_interceptor().bridge_and_filtering();
+    pub async fn listening(&self) {
+        let (loopback, mut listener) = msg_interceptor().bridge_and_filtering().await;
         let peers = self.peers.clone();
         let solution_mapping = self.solution_mapping.clone();
         let socket = self.socket.clone();

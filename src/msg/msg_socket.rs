@@ -7,6 +7,7 @@ use std::net::SocketAddrV6;
 use std::str::FromStr;
 use std::sync::{Arc, OnceLock};
 use tokio::net::UdpSocket;
+use tokio::runtime::Handle;
 use tokio::sync::mpsc::{channel, Receiver};
 use tracing::info;
 
@@ -15,6 +16,9 @@ pub struct MsgSocket {
     link_local_sockaddr: Arc<SocketAddrV6>,
     link_local_socket: Arc<UdpSocket>,
 }
+
+// unsafe impl Send for MsgSocket {}
+// unsafe impl Sync for MsgSocket {}
 
 static MSG_SOCKET_INSTANCE: OnceLock<MsgSocket> = OnceLock::new();
 pub fn msg_socket() -> &'static MsgSocket {
@@ -42,31 +46,36 @@ impl MsgSocket {
         })
     }
     // 暂时只允许调用一次
-    pub fn msg_streaming(&self) -> Receiver<Message> {
+    pub async fn msg_streaming(&self) -> Receiver<Message> {
         info!("接收消息");
         let (tx, rx) = channel(128);
         let lls_copy = self.link_local_socket.clone();
-        tokio::spawn(async move {
-            let mut buffer = BytesMut::with_capacity(4096);
-            loop {
-                match lls_copy.recv_buf_from(&mut buffer).await {
-                    Ok((len, _)) => {
-                        let msg = Message::from_str(
-                            String::from_utf8_lossy(&buffer.split_to(len).freeze()).as_str(),
-                        )
-                        .expect("skip it if it was broken");
-                        info!("接收到消息 {:?}", &msg);
-                        if let Err(e) = tx.send(msg).await {
-                            println!("{}", e);
+        tokio::task::spawn_blocking(move || {
+            let rt = tokio::runtime::Builder::new_current_thread()
+                .enable_all() // 启用 I/O 和定时器
+                .build()
+                .expect("无法创建运行时");
+            rt.block_on(async move {
+                let mut buffer = BytesMut::with_capacity(4096);
+                loop {
+                    match lls_copy.recv_buf_from(&mut buffer).await {
+                        Ok((len, _)) => {
+                            let msg = Message::from_str(
+                                String::from_utf8_lossy(&buffer.split_to(len).freeze()).as_str(),
+                            )
+                            .expect("skip it if it was broken");
+                            info!("接收到消息 {:?}", &msg);
+                            if let Err(e) = tx.send(msg).await {
+                                println!("{}", e);
+                            }
+                            info!("发送到 socket 消息流");
                         }
-                        info!("发送到 socket 消息流");
-                    }
-                    Err(e) => {
-                        info!("{:?}", e);
+                        Err(e) => {
+                            info!("{:?}", e);
+                        }
                     }
                 }
-                tokio::task::yield_now().await;
-            }
+            });
         });
         rx
     }

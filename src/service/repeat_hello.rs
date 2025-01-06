@@ -13,10 +13,9 @@ pub fn repeating_hello() {
             ..
         } = get_env();
         info!("hello 服务运行中");
-        let mut interval = tokio::time::interval(std::time::Duration::from_secs(10));
+        let mut interval = tokio::time::interval(std::time::Duration::from_secs(30));
         if let Ipv6Scope::LinkLocal(_, sid) = get_env().best_local_link().unwrap() {
             loop {
-                interval.tick().await;
                 msg_socket()
                     .get_raw_socket()
                     .send_to(
@@ -25,8 +24,8 @@ pub fn repeating_hello() {
                     )
                     .await
                     .unwrap();
+                interval.tick().await;
             }
-
         }
     });
 }

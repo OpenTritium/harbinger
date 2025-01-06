@@ -16,11 +16,11 @@ pub fn msg_interceptor() -> &'static MsgInterceptor {
 pub struct MsgInterceptor {}
 // 过滤已连接用户的请求连接组播hello报文
 impl MsgInterceptor {
-    pub fn bridge_and_filtering(&self) -> (Sender<PeerEvent>, Receiver<PeerEvent>) {
+    pub async fn bridge_and_filtering(&self) -> (Sender<PeerEvent>, Receiver<PeerEvent>) {
         // 过滤 msg
         let (tx, rx) = channel(128);
         let downstream = tx.clone();
-        let mut rs = msg_socket().msg_streaming();
+        let mut rs = msg_socket().msg_streaming().await;
         info!("桥接 socket 消息流 -> PeerEventExecutor");
         tokio::spawn(async move {
             loop {
