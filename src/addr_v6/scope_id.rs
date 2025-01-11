@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Eq, PartialEq, Hash, Serialize, Deserialize, Clone)]
+#[derive(Debug, Eq, PartialEq, Hash, Serialize, Deserialize, Copy, Clone)]
 pub struct ScopeId(u32);
 
 impl From<u32> for ScopeId {

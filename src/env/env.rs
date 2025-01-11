@@ -1,5 +1,5 @@
-use crate::addr::ipv6_scope::Ipv6Scope;
-use crate::addr::ipv6_scope::Ipv6Scope::LinkLocal;
+use crate::addr_v6::scope::Ipv6Scope;
+use crate::addr_v6::scope::Ipv6Scope::LinkLocal;
 use crate::env::uid::Uid;
 use nanoid::nanoid;
 use rustc_hash::FxHashMap;
@@ -20,7 +20,7 @@ pub enum EnvError {
 #[derive(Debug)]
 pub struct Env {
     pub host_id: Uid,
-    // scope_id,metric,addr
+    // scope_id,metric,addr_v6
     pub nics: FxHashMap<u32, (u32, Vec<Ipv6Scope>)>,
     // todo! 从配置读取
     pub multicast_local: Ipv6Addr,
@@ -34,14 +34,15 @@ impl Env {
             return Err(EnvError::RouteUnavailable);
         }
         // pick the best nic by metric
-        let (&scope_id, (_, addrs)) = self.nics.iter().min_by_key(|r| r.0).unwrap();
+        let (_, (_, addrs)) = self.nics.iter().min_by_key(|r| r.0).unwrap();
         addrs
             .iter()
             .rev()
             .find_map(|addr| match addr {
-                a @ LinkLocal(..) => Some(a.clone()),
+                a @ LinkLocal { .. } => Some(a.clone()),
                 _ => None,
-            }).ok_or(EnvError::BestMetricNicNotFound)
+            })
+            .ok_or(EnvError::BestMetricNicNotFound)
     }
 }
 
@@ -62,13 +63,7 @@ pub fn get_env() -> &'static Env {
                         .iter()
                         .filter_map(|&ip| {
                             if let IpAddr::V6(a) = ip {
-                                Some(
-                                    Ipv6Scope::try_from_ipv6addr(
-                                        a.clone(),
-                                        Some(adapter.ipv6_if_index().into()),
-                                    )
-                                        .ok()?,
-                                )
+                                Some((a, adapter.ipv6_if_index().into()).try_into().ok()?)
                             } else {
                                 None
                             }

@@ -1,16 +1,15 @@
-use crate::addr::ipv6_scope::Ipv6Scope;
+use crate::addr_v6::scope::Ipv6Scope;
 use crate::env::uid::Uid;
-use crate::msg::msg::Message;
+use crate::msg::msg::Msg;
 use crate::protocol::peer_ctrl_code::PeerCtrlCode;
-// 无丢失状态
-// 请求时验证
+// todo 请求时验证
 
-// 宏生成
+// todo 宏生成
 #[derive(Clone)]
 pub enum PeerEvent {
-    HELLO(Uid, Ipv6Scope),
-    CONNECTED(Uid, Ipv6Scope),
-    ESTABLISHED(Uid,Ipv6Scope),
+    HELLO { host_id: Uid, addr: Ipv6Scope },
+    CONNECTED { host_id: Uid, addr: Ipv6Scope },
+    ESTABLISHED { host_id: Uid, addr: Ipv6Scope },
     TRANSFERRING(Uid),
     UNREACHABLE(Uid),
 }
@@ -18,15 +17,23 @@ pub enum PeerEvent {
 unsafe impl Sync for PeerEvent {}
 unsafe impl Send for PeerEvent {}
 
-impl From<Message> for PeerEvent {
-    fn from(msg: Message) -> Self {
+// todo
+impl From<Msg> for PeerEvent {
+    fn from(msg: Msg) -> Self {
         match msg {
-            Message::Hello(hello_msg) =>
-                PeerEvent::HELLO(hello_msg.host_id, hello_msg.addr),
-            Message::Ctrl(ctrl_msg) => match ctrl_msg.ctrl_code {
-                n if PeerCtrlCode::CONNECT.bits() == n => PeerEvent::CONNECTED(ctrl_msg.host_id, ctrl_msg.addr),
-                _ => { panic!("Unexpected message code"); }
-            }
+            Msg::Hello(hello_msg) => PeerEvent::HELLO {
+                host_id: hello_msg.host_id,
+                addr: hello_msg.addr,
+            },
+            Msg::Ctrl(ctrl_msg) => match ctrl_msg.ctrl_code {
+                n if PeerCtrlCode::CONNECT.bits() == n => PeerEvent::CONNECTED {
+                    host_id: ctrl_msg.host_id,
+                    addr: ctrl_msg.addr,
+                },
+                _ => {
+                    panic!("Unexpected message code");
+                }
+            },
         }
     }
 }

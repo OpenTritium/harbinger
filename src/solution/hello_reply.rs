@@ -1,15 +1,18 @@
 use crate::env::env::get_env;
 use crate::event::peer_event::PeerEvent;
 use crate::msg::ctrl_msg::CtrlMsg;
+use crate::msg::msg::Msg;
 use crate::protocol::peer_ctrl_code::PeerCtrlCode;
 use crate::solution::peer_event_solution::{
     CrossError, FutureResult, PeerEventSolution, SolutionClosure,
 };
+use std::net::{SocketAddr, SocketAddrV6};
 use std::sync::OnceLock;
 use thiserror::Error;
 use tracing::info;
+use crate::addr_v6::scope::ScopeWithPort;
 
-static CONNECTION_REQUEST_STRING: OnceLock<String> = OnceLock::new();
+static CONNECTION_REQUEST: OnceLock<Msg> = OnceLock::new();
 static HELLO_REPLY_INSTANCE: OnceLock<HelloReply> = OnceLock::new();
 pub fn hello_reply() -> &'static HelloReply {
     info!("{}", "回复事件处理器初始化");
@@ -26,33 +29,38 @@ pub enum HelloReplyError {
 
 impl PeerEventSolution for HelloReply {
     fn dispatch_solution(&self, event: Box<PeerEvent>) -> Result<Box<SolutionClosure>, CrossError> {
-        if let PeerEvent::HELLO(uid, addr) = *event {
+        if let PeerEvent::HELLO{host_id, addr } = *event {
             info!("HELLO received!");
-            let msg = CONNECTION_REQUEST_STRING.get_or_init(|| {
-                CtrlMsg::new(
-                    PeerCtrlCode::CONNECT.bits(),
-                    get_env().host_id.clone(),
-                    get_env().best_local_link().unwrap(),
-                )
-                .to_string()
-            });
+            let msg = CONNECTION_REQUEST
+                .get_or_init(|| {
+                    Msg::Ctrl(CtrlMsg::new(
+                        PeerCtrlCode::CONNECT.bits(),
+                        get_env().host_id.clone(),
+                        get_env().best_local_link().unwrap(),
+                    ))
+                })
+                .clone();
             info!("构造回复消息：{}", msg);
             Ok(Box::new(
-                move |socket, peers, loopback| -> FutureResult<()> {
+                move |sender, peers, loopback| -> FutureResult<()> {
                     Box::pin(async move {
-                        socket
-                            .send_to(msg.as_bytes(), addr.clone().replace_scope_id().unwrap().into_sockaddr_v6())
+                        let dest:SocketAddrV6 = ScopeWithPort{scope:addr.clone().replace_scope_id().unwrap().into(),port:get_env().port}.into();
+                        sender
+                            .send((
+                                msg,
+                                dest.into(),
+                            ).into())
                             .await
                             .unwrap();
                         info!("发送连接请求");
                         loopback
-                            .send(PeerEvent::ESTABLISHED(uid.clone(), addr.clone()))
+                            .send(PeerEvent::ESTABLISHED{host_id:host_id.clone(),addr:addr.clone()})
                             .await
                             .unwrap();
                         info!("发送自循环事件");
 
                         peers
-                            .entry(uid)
+                            .entry(host_id)
                             .and_modify(|v| *v = addr.clone())
                             .or_insert(addr);
                         info!("插入用户表");

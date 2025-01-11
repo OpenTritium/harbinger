@@ -1,6 +1,5 @@
 use bitflags::bitflags;
 
-// 报文只会用三个，全部都用来挂在服务
 bitflags! {
 pub struct PeerCtrlCode: u8 {
         const HELLO = 0b00000001;

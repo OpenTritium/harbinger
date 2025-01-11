@@ -1,13 +1,14 @@
-use crate::addr::ipv6_scope::Ipv6Scope;
+use crate::addr_v6::scope::Ipv6Scope;
 use crate::env::uid::Uid;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
+use crate::msg::msg::Msg;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct CtrlMsg {
-   ctrl: (),
+    ctrl: (),
     pub version: u8,
     pub ctrl_code: u8,
     pub host_id: Uid,
@@ -19,13 +20,12 @@ impl CtrlMsg {
         CtrlMsg {
             ctrl: (),
             version: 0,
-            ctrl_code: ctrl_code,
+            ctrl_code,
             host_id,
             addr,
         }
     }
 }
-
 
 impl FromStr for CtrlMsg {
     type Err = ron::de::Error;
@@ -38,5 +38,11 @@ impl Display for CtrlMsg {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         let ser = ron::to_string(self).map_err(|_| fmt::Error)?;
         write!(f, "{}", ser)
+    }
+}
+
+impl Into<Msg> for CtrlMsg {
+    fn into(self) -> Msg {
+        Msg::Ctrl(self)
     }
 }

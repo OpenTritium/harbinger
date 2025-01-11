@@ -2,15 +2,17 @@
 #![feature(str_as_str)]
 #![feature(unboxed_closures)]
 #![feature(duration_constructors)]
-use tracing::{info, Level};
-use tracing_subscriber::FmtSubscriber;
+extern crate core;
+
 use crate::service::repeat_hello::repeating_hello;
 use crate::solution::hello_reply::hello_reply;
-use crate::solution::peer_event_executor::{peer_event_executor};
+use crate::solution::peer_event_executor::peer_event_executor;
+use tracing::{Level, info};
+use tracing_subscriber::FmtSubscriber;
 
 mod protocol;
 
-mod addr;
+mod addr_v6;
 mod env;
 mod event;
 mod interceptor;
@@ -24,8 +26,7 @@ async fn main() {
         .with_max_level(Level::TRACE)
         .finish();
 
-    tracing::subscriber::set_global_default(subscriber)
-        .expect("setting default subscriber failed");
+    tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
 
     repeating_hello();
     peer_event_executor().registry(hello_reply());
@@ -34,7 +35,7 @@ async fn main() {
         let mut interval = tokio::time::interval(std::time::Duration::from_secs(3));
         loop {
             interval.tick().await;
-            info!("已发现的用户：{:?}",peer_event_executor().peers);
+            info!("已发现的用户：{:?}", peer_event_executor().peers);
             //tokio::task::yield_now().await;
         }
     });
