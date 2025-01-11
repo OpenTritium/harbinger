@@ -6,7 +6,7 @@ extern crate core;
 
 use crate::service::repeat_hello::repeating_hello;
 use crate::solution::hello_reply::hello_reply;
-use crate::solution::peer_event_executor::peer_event_executor;
+use crate::solution::peer_event_handler::peer_event_handler;
 use tracing::{Level, info};
 use tracing_subscriber::FmtSubscriber;
 
@@ -29,13 +29,13 @@ async fn main() {
     tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
 
     repeating_hello();
-    peer_event_executor().registry(hello_reply());
-    peer_event_executor().listening().await;
+    peer_event_handler().registry(hello_reply());
+    peer_event_handler().listening().await;
     tokio::spawn(async move {
         let mut interval = tokio::time::interval(std::time::Duration::from_secs(3));
         loop {
             interval.tick().await;
-            info!("已发现的用户：{:?}", peer_event_executor().peers);
+            info!("已发现的用户：{:?}", peer_event_handler().peers);
             //tokio::task::yield_now().await;
         }
     });

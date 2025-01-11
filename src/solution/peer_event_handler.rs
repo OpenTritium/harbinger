@@ -12,18 +12,18 @@ use std::sync::{Arc, OnceLock};
 use tokio::sync::mpsc::Sender;
 use tracing::info;
 
-pub struct PeerEventExecutor {
+pub struct PeerEventHandler {
     pub peers: Arc<DashMap<Uid, Ipv6Scope>>,
     solution_mapping: Arc<DashMap<u8, Vec<&'static dyn PeerEventSolution>>>,
     sender: Sender<(Msg, SocketAddr)>, // todo 可以减少一次clone
 }
 
-pub static PEER_EVENT_EXECUTOR: OnceLock<PeerEventExecutor> = OnceLock::new();
+pub static PEER_EVENT_HANDLER: OnceLock<PeerEventHandler> = OnceLock::new();
 
-pub fn peer_event_executor() -> &'static PeerEventExecutor {
-    PEER_EVENT_EXECUTOR.get_or_init(PeerEventExecutor::new)
+pub fn peer_event_handler() -> &'static PeerEventHandler {
+    PEER_EVENT_HANDLER.get_or_init(PeerEventHandler::new)
 }
-impl PeerEventExecutor {
+impl PeerEventHandler {
     pub fn new() -> Self {
         info!("事件执行器初始化");
         Self {

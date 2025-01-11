@@ -53,8 +53,8 @@ impl From<Ipv6Scope> for Ipv6Addr {
 }
 
 pub struct ScopeWithPort {
-    pub(crate) scope: Ipv6Scope,
-    pub(crate) port: u16,
+    pub scope: Ipv6Scope,
+    pub port: u16,
 }
 impl From<ScopeWithPort> for SocketAddrV6 {
     fn from(val: ScopeWithPort) -> Self {
