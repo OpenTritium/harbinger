@@ -1,37 +1,50 @@
-use crate::msg::msg::Msg;
-use bytes::BytesMut;
-use std::str::{FromStr, from_utf8};
+use crate::{msg::msg::Msg, utils::Env};
+use bytes::{Buf, BytesMut};
 use tokio_util::codec::{Decoder, Encoder};
 
+#[derive(Default)]
+pub struct MsgCodec;
 
-//todo 错误处理
-pub struct MsgCodec {}
+impl MsgCodec {
+    const HEADER_LEN: usize = size_of::<u16>() + size_of::<u8>();
+}
 
 impl Decoder for MsgCodec {
     type Item = Msg;
-    type Error = std::io::Error;
+    type Error = bincode::Error;
 
     fn decode(&mut self, src: &mut BytesMut) -> Result<Option<Self::Item>, Self::Error> {
-        if src.is_empty() {
+        if src.len() < MsgCodec::HEADER_LEN {
             return Ok(None);
         }
-        let msg =
-            Msg::from_str(from_utf8(src.split().freeze().to_vec().as_ref()).unwrap()).unwrap();
+        let msg_len = u16::from_le_bytes([src[0], src[1]]) as usize;
+        let protocol_version = src[2];
+        if src.len() < msg_len {
+            src.reserve(msg_len - src.len());
+            return Ok(None);
+        }
+        if protocol_version != Env::instance().protocol_version {
+            src.advance(msg_len);
+            return Ok(None);
+        }
+        let msg = bincode::deserialize(&src.split_to(msg_len)[MsgCodec::HEADER_LEN..])?;
         Ok(Some(msg))
     }
 }
 
 impl Encoder<Msg> for MsgCodec {
-    type Error = std::io::Error;
+    type Error = bincode::Error;
 
     fn encode(&mut self, item: Msg, dst: &mut BytesMut) -> Result<(), Self::Error> {
-        dst.extend_from_slice(item.to_string().as_bytes());
+        let msg = bincode::serialize(&item)?;
+        dst.extend(
+            ((msg.len() + Self::HEADER_LEN) as u16)
+                .to_be_bytes()
+                .iter()
+                .copied()
+                .chain([Env::instance().protocol_version].iter().copied())
+                .chain(msg.into_iter()),
+        );
         Ok(())
-    }
-}
-
-impl MsgCodec {
-    pub fn new() -> Self {
-        Self {}
     }
 }
