@@ -2,8 +2,8 @@ use crate::addr_v6::{Ipv6Scope, ScopeId, ScopeWithPort};
 use crate::msg::msg::Msg;
 use crate::msg::msg_codec::MsgCodec;
 use crate::utils::{Env, NetworkInterfaceView};
-use anyhow::Error as AnyError;
 use anyhow::Result;
+use anyhow::{Context, Error as AnyError};
 use futures::SinkExt;
 use futures::StreamExt;
 use futures::stream::{SplitSink, SplitStream};
@@ -11,6 +11,7 @@ use std::net::{SocketAddr, SocketAddrV6};
 use std::ops::Deref;
 use tokio::sync::mpsc::{Receiver, Sender, channel};
 use tokio_util::udp::UdpFramed;
+use tracing::{info, warn};
 
 pub type MsgSink = SplitSink<UdpFramed<MsgCodec>, (Msg, SocketAddr)>;
 pub type MsgStream = SplitStream<UdpFramed<MsgCodec>>;
@@ -30,20 +31,22 @@ impl ProtocolSocket {
             .clone()
             .ok_or(AnyError::msg("linklocal iface not found"))?
             .try_into()?;
-        let sock_addr: SocketAddrV6 =
+        let sock_addr_linklocal: SocketAddrV6 =
             ScopeWithPort::new_outbound(iface_linklocal, Env::instance().protocol_port)
                 .await
                 .into();
-        let scope_id: ScopeId = sock_addr.scope_id().into();
+        let scope_id: ScopeId = sock_addr_linklocal.scope_id().into();
         let sock = tokio::task::block_in_place(|| {
             tokio::runtime::Handle::current().block_on(async move {
-                let sock = tokio::net::UdpSocket::bind(sock_addr).await.expect("failed to bind udpsocket");
+                let sock = tokio::net::UdpSocket::bind(sock_addr_linklocal)
+                    .await
+                    .expect("Udpsocket of protocol failed to bind to the link-local address");
                 // sock.join_multicast_v6(&Env::instance().multicast_global, 0).unwrap();
                 sock
             })
         });
         sock.join_multicast_v6(&Env::instance().multicast_local, scope_id.into())
-            .unwrap();
+            .context("Failed to join the multicast group of linklocal.")?;
         Ok(UdpFramed::new(sock, MsgCodec::default()).split())
     }
 
@@ -56,10 +59,14 @@ impl ProtocolSocket {
                 .unwrap()
                 .block_on(async move {
                     loop {
-                        let (msg, dest) = rx.recv().await.expect("parcel -> sink was broken");
+                        let (msg, dest) = rx.recv().await.expect(
+                            "Failed when receiving Parcel(Msg, Ipv6Scope) from parcel receiver.",
+                        );
                         let dest: SocketAddrV6 =
                             ScopeWithPort::new(dest, Env::instance().protocol_port).into();
-                        sink.send((msg, dest.into())).await.unwrap();
+                        sink.send((msg, dest.into()))
+                            .await
+                            .expect("Failed when sending (Msg, SocketAddr) to sink.");
                     }
                 });
         });
@@ -75,12 +82,12 @@ impl ProtocolSocket {
                 .unwrap()
                 .block_on(async move {
                     loop {
-                        while let Ok((msg, src)) = stream.next().await.unwrap() {
+                        while let Ok((msg, src)) = stream.next().await.expect("Failed when receiving (Msg, SocketAddr) from stream.") {
                             if let SocketAddr::V6(src) = src {
                                 if let Ok(src) = Ipv6Scope::try_from(&src) {
-                                    tx.send((msg, src)).await.unwrap();
+                                    tx.send((msg, src)).await.expect("Failed when sending Parcel(Msg, Ipv6Scope) to parcel receiver.");
                                 } else {
-                                    // todo 日志
+                                    warn!("接收到一个来自非法地址 {:?} 的消息",src)
                                 }
                             }
                         }
@@ -88,5 +95,14 @@ impl ProtocolSocket {
                 })
         });
         rx
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[tokio::test(flavor = "multi_thread")]
+    async fn try_init() {
+        let _ = ProtocolSocket::init().await.expect("Failed to init protocol socket, check your code or ensure you have a valid IPv6 address.");
     }
 }

@@ -1,9 +1,10 @@
 use super::protocol_socket::ParcelSender;
-use crate::utils::Uid;
 use crate::msg::ProtocolSocket;
 use crate::peer::PeerEvent;
+use crate::utils::Uid;
 use anyhow::Result;
 use dashmap::DashSet;
+use tracing::info;
 use std::sync::Arc;
 use tokio::sync::mpsc::{Receiver, Sender, channel};
 
@@ -24,9 +25,14 @@ impl MsgProxy {
         tokio::spawn(async move {
             let mut msg_reveiver = ProtocolSocket::receiving(msg_stream);
             loop {
-                if let Some(parcel) = msg_reveiver.recv().await {
-                    event_sender_clone.send(parcel.into()).await.expect("msg -> event was broken");
-                }
+                let parcel = msg_reveiver
+                    .recv()
+                    .await
+                    .expect("Failed when receiving Parcel(Msg, Ipv6Scope) from message sender.");
+                event_sender_clone
+                    .send(parcel.into())
+                    .await
+                    .expect("Failed when send sending PeerEvent to event sender.");
             }
         });
         Ok((event_sender, event_receiver, parcel_sender))

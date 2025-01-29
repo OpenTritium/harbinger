@@ -17,7 +17,7 @@ impl Decoder for MsgCodec {
         if src.len() < MsgCodec::HEADER_LEN {
             return Ok(None);
         }
-        let msg_len = u16::from_le_bytes([src[0], src[1]]) as usize;
+        let msg_len = u16::from_be_bytes([src[0], src[1]]) as usize;
         let protocol_version = src[2];
         if src.len() < msg_len {
             src.reserve(msg_len - src.len());

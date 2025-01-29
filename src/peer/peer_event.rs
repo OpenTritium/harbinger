@@ -3,7 +3,7 @@ use crate::msg::{Msg, Parcel};
 use crate::utils::Uid;
 
 // 派生宏支持
-#[derive(Clone)]
+#[derive(Clone,Debug)]
 pub enum PeerEvent {
     Hello { host_id: Uid, addr: Ipv6Scope },
     Connect { host_id: Uid, addr: Ipv6Scope },

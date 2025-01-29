@@ -2,7 +2,6 @@ use crate::msg::{EventSender,ParcelSender};
 use crate::peer::peer_event::PeerEvent;
 use crate::peer::peer_event_flags::PeerEventFlags;
 use futures::future::BoxFuture;
-use std::error::Error;
 
 use super::peer_event_handler::PeerStateTable;
 

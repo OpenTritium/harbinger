@@ -7,23 +7,24 @@ use netif::Interface;
 use serde::{Deserialize, Serialize};
 use std::net::{IpAddr, Ipv6Addr, SocketAddrV6};
 
+/// When the address is in unicast mode, `lan` represents link-local (fe80 addresses), and `wan` represents addresses belonging to a domain larger than link-local.
+/// When the address is in multicast mode, `lan` exclusively represents multicast addresses within the link-local domain (excluding loopback addresses), whereas `wan` represents multicast addresses within the Global, Organization-Local, Site-Local, Admin-Local, or Realm-Local domains.
+/// No other address modes should exist.
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, Eq, Hash, PartialEq)]
 pub enum Ipv6Scope {
     Lan { addr: CastMode, scope_id: ScopeId }, // LinkLocal
-    Wan(CastMode),                             // scope more wider than LinkLocal
+    Wan(CastMode),                             // Wider scope than LinkLocal
 }
 
 impl TryFrom<Ipv6Addr> for CastMode {
     type Error = AnyError;
     fn try_from(val: Ipv6Addr) -> Result<Self, Self::Error> {
-        if val.is_unicast() {
-            Ok(CastMode::Unicast(val))
-        } else if val.is_multicast() {
-            Ok(CastMode::Multicast(val))
-        } else {
-            Err(AnyError::msg(
-                "no convertion from ipv6addr to castmode for this value",
-            ))
+        match val {
+            val if val.is_unicast() => Ok(CastMode::Unicast(val)),
+            val if val.is_multicast() => Ok(CastMode::Multicast(val)),
+            _ => Err(AnyError::msg(
+                "The IPv6 address is neither a unicast nor multicast address.",
+            )),
         }
     }
 }
@@ -44,7 +45,7 @@ impl From<CastMode> for Ipv6Addr {
 
 type AddrWithScope = (CastMode, ScopeId);
 
-// scope_id will be overrided when converting from global addr
+// The scope_id will be overridden when converting from a global address.
 impl TryFrom<AddrWithScope> for Ipv6Scope {
     type Error = AnyError;
     fn try_from((addr, scope_id): AddrWithScope) -> Result<Self, Self::Error> {
@@ -64,7 +65,7 @@ impl TryFrom<AddrWithScope> for Ipv6Scope {
                 Ok(Lan { addr: m, scope_id })
             }
             _ => Err(AnyError::msg(
-                "no convertion from linklocaltuple to ipv6scope for this value",
+                "The address is not a unicast address, and the multicast address does not belong to any multicast domain.",
             )),
         }
     }
@@ -80,25 +81,20 @@ impl TryFrom<&SocketAddrV6> for Ipv6Scope {
     }
 }
 
-/// always override the scope_id
+// The scope identifier will be overridden during address conversion
 impl From<Ipv6Scope> for Ipv6Addr {
     fn from(val: Ipv6Scope) -> Self {
         match val {
             Lan {
-                addr: Unicast(addr),
+                addr: Unicast(addr) | Multicast(addr),
                 ..
-            } => addr,
-            Lan {
-                addr: Multicast(addr),
-                ..
-            } => addr,
-            Wan(Unicast(addr)) => addr,
-            Wan(Multicast(addr)) => addr,
+            }
+            | Wan(Unicast(addr) | Multicast(addr)) => addr,
         }
     }
 }
 
-/// This is a newtype for convert (ipv6Scope,port) into SocketAddrV6
+/// This newtype facilitates the conversion of an (Ipv6Scope, port) tuple into a SocketAddrV6.
 pub struct ScopeWithPort {
     pub addr: Ipv6Scope,
     pub port: u16,
@@ -114,10 +110,15 @@ impl ScopeWithPort {
             return Self::new(addr, port);
         };
         let ifaces = iface::instance().get().await;
-        let linklocal_iface = ifaces.0.as_ref().unwrap();
+        let linklocal_iface = ifaces.0.as_ref().expect(
+            "Failed to retrieve the link-local address interface in the application environment.",
+        );
         let lan = Ipv6Scope::Lan {
             addr,
-            scope_id: linklocal_iface.scope_id().unwrap().into(),
+            scope_id: linklocal_iface
+                .scope_id()
+                .expect("The network interface has no associated scope ID.")
+                .into(),
         };
         Self::new(lan, port)
     }
@@ -137,11 +138,13 @@ impl TryFrom<Interface> for Ipv6Scope {
     type Error = AnyError;
     fn try_from(val: Interface) -> Result<Self, Self::Error> {
         let IpAddr::V6(addr) = val.address() else {
-            return Err(AnyError::msg("this is not a ipv6 addr"));
+            return Err(AnyError::msg(
+                "The interface is not an IPv6-enabled interface.",
+            ));
         };
         let scope_id = val
             .scope_id()
-            .ok_or(AnyError::msg("scope does not exist"))?;
+            .ok_or(AnyError::msg("The interface has no associated scope ID."))?;
         ((*addr).try_into()?, scope_id.into()).try_into()
     }
 }
