@@ -13,7 +13,7 @@ pub struct PeerEventHandler {
 
 // service manager
 impl PeerEventHandler {
-    pub async fn handling(&self, adapter_io: crate::msg::AdapterIo) {
+    pub async fn handling(&self, adapter_io: AdapterIo) {
         let AdapterIo {
             loopback,
             mut receiver,

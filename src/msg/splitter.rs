@@ -125,7 +125,7 @@ impl MsgSplitter {
             .map(|sock| {
                 sock.inspect_err(|err| warn!("{}", err))
                     .ok()
-                    .and_then(|sock| Some(UdpFramed::new(sock, MsgCodec::default()).split()))
+                    .map(|sock| UdpFramed::new(sock, MsgCodec).split())
             })
             .map(|opt| {
                 opt.map(|(sink, stream)| (Some(sink), Some(stream)))
@@ -134,7 +134,7 @@ impl MsgSplitter {
             .unzip();
         let (stream_parcel_in, stream_parcel_out) = channel(128);
         let (sink_parcel_in, sink_parcel_out) = channel(128);
-        (0..2).into_iter().for_each(|n| {
+        (0..2).for_each(|n| {
             if let Some(stream) = streams[n].take() {
                 Self::forwarding_stream_to_channel(stream, stream_parcel_in.clone());
             }

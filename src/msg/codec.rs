@@ -51,7 +51,7 @@ impl Encoder<Msg> for MsgCodec {
                 .iter()
                 .copied()
                 .chain([env().protocol_version].iter().copied())
-                .chain(msg.into_iter()),
+                .chain(msg),
         );
         Ok(())
     }
