@@ -3,25 +3,31 @@
 #![feature(unboxed_closures)]
 #![feature(duration_constructors)]
 
-use std::{thread::{park, sleep}, time::Duration};
+use std::thread::park;
 
-use msg::{MsgProxy, ProtocolSocket};
-use peer::{hello_reply::HelloReply, repeating_hello, PeerEventHandler};
-use tracing::{Level, info};
-use tracing_subscriber::FmtSubscriber;
+use msg::{MsgEventAdapter, MsgSplitter};
+use peer::{repeating_hello, PeerEventHandler};
+
+
 
 mod addr_v6;
-mod utils;
 mod msg;
 mod peer;
+mod utils;
 
 #[tokio::main]
 async fn main() {
     tracing_subscriber::fmt::fmt().init();
-    let (event_sender,event_receiver,parcel_sender) = MsgProxy::proxying().await.unwrap();
-    let peh = PeerEventHandler::default();
-    peh.handling(event_receiver, parcel_sender.clone(), event_sender);
-    peh.registry(HelloReply::instance());
-    repeating_hello(parcel_sender);
-    sleep(Duration::from_days(1));
+    //console_subscriber::init();
+    // let lan = netif::up().unwrap().find(|iface| {
+    //     // Add your condition here, for example:
+    //     iface.name().to_lowercase().contains("eth") && iface.is_ipv6()
+    // }).unwrap();
+    let x  = MsgSplitter::forwarding().await;
+    let y = MsgEventAdapter::accpeting(x);
+    let xx = y.parcel_sender.clone();
+    let h = PeerEventHandler::default();
+    h.handling(y).await;
+    repeating_hello(xx).await.unwrap();
+    park();
 }

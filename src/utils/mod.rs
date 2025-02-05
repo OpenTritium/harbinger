@@ -1,7 +1,7 @@
 mod env;
+mod nic;
 mod uid;
-mod net_iface;
 
-pub use env::Env;
+pub use env::{Env,env};
+pub use nic::nic_selected;
 pub use uid::Uid;
-pub use net_iface::NetworkInterfaceView;

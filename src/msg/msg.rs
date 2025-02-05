@@ -6,5 +6,5 @@ use serde::{Deserialize, Serialize};
 pub enum Msg {
     Hello { host_id: Uid, addr: Ipv6Scope },
     Connect { host_id: Uid },
-    Conflict, // uid 冲突
+    Conflict,
 }

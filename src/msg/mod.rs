@@ -1,8 +1,10 @@
+mod codec;
+mod event_adapter;
 mod msg;
-mod msg_codec;
-mod msg_proxy;
-mod protocol_socket;
+mod socket;
+mod splitter;
 
+pub use event_adapter::{AdapterIo, MsgEventAdapter};
 pub use msg::Msg;
-pub use msg_proxy::{EventReceiver, EventSender, MsgProxy};
-pub use protocol_socket::{Parcel, ParcelReceiver, ParcelSender, ProtocolSocket};
+pub use socket::{Parcel, ParcelReceiver, ParcelSender};
+pub use splitter::{EventReceiver, EventSender, MsgSplitter};
