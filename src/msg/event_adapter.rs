@@ -1,3 +1,5 @@
+use tracing::info;
+
 use super::{EventReceiver, EventSender, ParcelSender, splitter::ParcelIo};
 
 pub struct MsgEventAdapter;
@@ -35,6 +37,8 @@ impl MsgEventAdapter {
                 let parcel = inbound.recv().await.expect(
                     "The channel for receiving Parcels in MsgEventAdapter has unexpectedly closed.",
                 );
+                
+                info!("STREAM 积压：{}",inbound.len());
                 event_upstream_cloned
                     .send(parcel.into())
                     .await

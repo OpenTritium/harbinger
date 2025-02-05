@@ -83,6 +83,7 @@ impl MsgSplitter {
                 let (msg, dest) = sink_parcel_out.recv().await.expect(
                     "The parcel channel for sink message delivery has closed unexpectedly.",
                 );
+                info!("SINK 积压：{}",sink_parcel_out.len());
                 info!("分流器出站：{} 内容：{:?} ", dest, &msg);
                 match dest {
                     Lan { .. } if lan_sink.is_some() => {

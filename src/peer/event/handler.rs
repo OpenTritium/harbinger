@@ -25,6 +25,7 @@ impl PeerEventHandler {
             // 不要关心网卡在不在的问题，这是是下面一层该关心的问题
             loop {
                 let event = receiver.recv().await.unwrap();
+                info!("开始处理事件：{:?}",event);
                 match event {
                     //todo 过滤组播hello
                     Hello {
